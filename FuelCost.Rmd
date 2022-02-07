@@ -1,0 +1,413 @@
+---
+title: "Flights R&D"
+author: "Bhanu Kiran"
+date: "23/01/2022"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(stringr)
+```
+
+# Meta-Data
+
+1. ECTL_ID - Unique numeric identifier for each flight in Eurocontrol PRISME DWH  
+2. ADEP ICAO -  airport code for the departure airport of the flight. The ICAO airport code or
+location indicator is a four-letter alphanumeric code designating each airport around
+the world. These codes are defined by the International Civil Aviation Organization,
+and published in ICAO Document 7910: Location Indicators.  
+3.ADEP Latitude -  Latitude of departure airport in decimal degrees  
+4. ADEP Longitude - Longitude of departure airport in decimal degrees  
+5. ADES ICAO - airport code for the destination airport of the flight. The ICAO airport code or
+location indicator is a four-letter alphanumeric code designating each airport around
+the world. These codes are defined by the International Civil Aviation Organization,
+and published in ICAO Document 7910: Location Indicators.
+If a flight is diverted, then the ADES will be the actual airport where it landed.  
+6. ADES Latitude - Latitude of destination airport in decimal degrees.  
+7. ADES Latitude - Latitude of destination airport in decimal degrees  
+8. Filed Arrival Time - Time of arrival (UTC) based on the last filed flight plan. It is the time at which the
+aircraft will land at the aerodrome according to the planned profile calculated for the
+flight.  
+9. Actual Off-Block Time - Off-Block Time (UTC) based on the ATFM-updated flight plan. The time that an aircraft
+departs from its parking position. This time may be known from flight data updates received by NM, or in the absence of
+such updates may be calculated from the known take-off time minus a standard taxi
+time value for the airport.  
+10.Actual Arrival
+Time - 
+Time of arrival (UTC) based on the ATFM-updated flight plan. It is the time at which the
+aircraft lands at the aerodrome, reflecting the best picture that NM has based on
+available radar updates, ATFM messages received etc.  
+11. AC Type - The ICAO aircraft type designator is a two-, three- or four-character alphanumeric code
+designating every aircraft type that may appear in flight planning. These codes are
+defined by the International Civil Aviation Organization, and published in ICAO
+Document 8643 Aircraft Type Designators.  
+12. AC Operator - Three-letter ICAO operator code. Aircraft operator codes are defined by ICAO and
+published in Document 8585. If the operator is unknown, not provided in the flight
+plan or not present in Document 8585 the value will be "ZZZ".  
+13. AC Registration - Aircraft registration. In accordance with the Convention on International Civil Aviation,
+all civil aircraft must be registered with a national aviation authority (NAA) using
+procedures set by each country. Every country, even those not party to the Chicago
+Convention, has an NAA whose functions include the registration of civil aircraft. An
+aircraft can only be registered once, in one jurisdiction, at a time. The NAA allocates a
+unique alphanumeric string to identify the aircraft, which also indicates the nationality
+of the aircraft, and provides a legal document called a Certificate of Registration, one
+of the documents which must be carried when the aircraft is in operation.
+14. ICAO Flight Type - ICAO Flight Type: S – Scheduled, N - Non-scheduled commercial operation  
+15. STATFOR Market
+Segment - Market segment definitions can be found in
+http://www.eurocontrol.int/sites/default/files/content/documents/officialdocuments/
+facts-and-figures/statfor/statfor-market-segments-rules-for-sid-2016-
+definition.xls
+16. Requested FL -  Requested cruising flight level from the flight plan.
+17. Actual Distance
+Flown (nm) - 
+Distance flown in nautical miles, corresponding to the ‘actual’ profile below.  
+
+
+# TODO:
+
+1. import all the data sets. 
+2. join the datasets where possible. check python GitHub code. https://github.com/eeftychiou/FuelCost/blob/master/preprocess.py
+3. according to the link create functions accordingly. EG: loading file, joining files, refer the python code.
+4. The functions have math calculations so do them.
+
+
+
+# Importing data sets
+```{r}
+setwd("/Users/bhanukiran/Desktop/Fiverr gig Tashayu" )
+directory<-('./flights data/')
+files <- list.files(directory, full.names=T)
+data.list <- lapply(files, read.csv)
+flights_df <- do.call(rbind, data.list)
+dim(flights_df)
+#flight1 <- read_csv('Flights_20190301_20190331.csv')
+#flight2 <- read_csv('Flights_20190601_20190630.csv')
+#flight3 <- read_csv('Flights_20190901_20190930.csv')
+#flight4 <- read_csv('Flights_20191201_20191231.csv')
+```
+
+
+### Changing column names of the columns
+
+
+
+```{r}
+#setColNames <- function(flights_df) {
+colnames(flights_df) <- c("ECTRL_ID", "ADEP", "ADEP_Latitude", "ADEP_Longitude", "ADES", "ADES_Latitude", "ADES_Longitude",
+                   "FILED_OFF_BLOCK_TIME", "FILED_ARRIVAL_TIME",
+                   "ACTUAL_OFF_BLOCK_TIME", "ACTUAL_ARRIVAL_TIME", "AC_Type", "AC_Operator", "AC_Registration",
+                   "ICAO_Flight_Type", "STATFOR_Market_Segment", "Requested_FL", "Actual_Distance_Flown")
+
+flights_df$STATFOR_Market_Segment <- as.factor(flights_df$STATFOR_Market_Segment)
+flights_df$AC_Type <- as.factor(flights_df$AC_Type)
+flights_df$ADES <- as.factor(flights_df$ADES)
+flights_df$ADEP <- as.factor(flights_df$ADEP)
+flights_df$AC_Operator <- as.factor(flights_df$AC_Operator)
+flights_df$Actual_Distance_Flown <- as.numeric(flights_df$Actual_Distance_Flown)
+#return(flights_df)
+#}
+```
+
+```{r}
+#flights_df<-setColNames(flights_df)
+```
+
+```{r}
+colnames(flights_df)
+```
+
+```{r}
+head(flights_df)
+```
+
+
+### Load acperf data
+
+```{r}
+#preProcessAceperf <- function(flights_df){
+
+header_list <- c("KEY","BK_AC_TYPE_ID","ICAO_TYPE_CODE","AC_CATEGORY","EQV_TYPE","EQV_NAME","ICAO_ENGINE_DESC","CO2_COEFF","MASS","BAND_FROM_NM","BAND_TO_NM","BAND_FLOOR_NM","FUEL_TOT","FUEL_TOT_MARG_RATE","CORR_FACTOR","CALC_RETURN_CODE","TINV","S","N","X_BAR","SXX","E","ERROR_TYPE","MASS_RATIO","ERROR_RATE_FUEL_PER_NM","AO_FUEL_VERSION_ID","CREA_DATE","CREA_NOTE","VALID_FROM","VALID_TO")
+
+directory<-('./aceperfDB data/')
+files <- list.files(directory, full.names=T)
+data.list <- lapply(files, read_xlsx)
+aceperf_df <- do.call(rbind, data.list)
+colnames(aceperf_df) <- header_list
+
+aceperf_df$KEY <- as.factor(aceperf_df$KEY)
+aceperf_df$CO2_COEFF <- as.numeric(aceperf_df$CO2_COEFF)
+aceperf_df$FUEL_TOT <- as.numeric(aceperf_df$FUEL_TOT)
+aceperf_df$FUEL_TOT_MARG_RATE <- as.numeric(aceperf_df$FUEL_TOT_MARG_RATE)
+aceperf_df$CORR_FACTOR <- as.numeric(aceperf_df$CORR_FACTOR)
+
+flights_df$AC_Type <- gsub(" ","",paste(flights_df$AC_Type, '----'))
+colnames(aceperf_df)[1] <- 'AC_Type'
+
+flights_df <- full_join(flights_df, aceperf_df)
+
+
+
+flights_df$FUEL <- ((flights_df$FUEL_TOT + (flights_df$Actual_Distance_Flown * flights_df$FUEL_TOT_MARG_RATE)) * flights_df$CORR_FACTOR )
+flights_df$EMISSIONS <- flights_df$CO2_COEFF * flights_df$FUEL
+
+#return(flights_df)
+
+#}
+```
+
+```{r}
+#flights_df<-preProcessAceperf(flights_df)
+```
+
+```{r}
+head(aceperf_df)
+```
+
+
+```{r}
+head(flights_df)
+```
+
+
+
+### Create categories
+
+```{r}
+
+createCategories <- function(flights_df){
+directory<-('./ICAOPrefix data/')
+files <- list.files(directory, full.names=T)
+data.list <- lapply(files, read_xlsx)
+icaoPrefixCategories <- do.call(rbind, data.list)
+dim(flights_df)
+flights_df$ADEP_PREFIX <- substring(flights_df$ADEP, 1,2)
+flights_df$ADES_PREFIX <- substring(flights_df$ADES, 1,2)
+
+#fix flights to/from US, CANADA and Australia
+
+flights_df$ADEP_PREFIX <- ifelse(substring(flights_df$ADEP_PREFIX,1,1) == 'K', 'K', substring(flights_df$ADEP_PREFIX,1,2))
+flights_df$ADES_PREFIX <- ifelse(substring(flights_df$ADES_PREFIX,1,1) == 'K', 'K', substring(flights_df$ADES_PREFIX,1,2))
+
+flights_df$ADEP_PREFIX <- ifelse(substring(flights_df$ADEP_PREFIX,1,1) == 'C', 'C', substring(flights_df$ADEP_PREFIX,1,2))
+flights_df$ADES_PREFIX <- ifelse(substring(flights_df$ADES_PREFIX,1,1) == 'C', 'C', substring(flights_df$ADES_PREFIX,1,2))
+
+flights_df$ADEP_PREFIX <- ifelse(substring(flights_df$ADEP_PREFIX,1,1) == 'Y', 'Y', substring(flights_df$ADEP_PREFIX,1,2))
+flights_df$ADES_PREFIX <- ifelse(substring(flights_df$ADES_PREFIX,1,1) == 'Y', 'Y', substring(flights_df$ADES_PREFIX,1,2))
+
+#fix flights to/from China
+flights_df$ADEP_PREFIX <- ifelse(substring(flights_df$ADEP_PREFIX,1,1) == 'Z' & substring(flights_df$ADEP_PREFIX,1,2) != 'ZK' & substring(flights_df$ADEP_PREFIX,1,2) != 'ZM', 'Z', substring(flights_df$ADEP_PREFIX,1,2))
+flights_df$ADES_PREFIX <- ifelse(substring(flights_df$ADES_PREFIX,1,1) == 'Z' & substring(flights_df$ADES_PREFIX,1,2) != 'ZK' & substring(flights_df$ADES_PREFIX,1,2) != 'ZM', 'Z', substring(flights_df$ADES_PREFIX,1,2))
+
+
+
+#fix flights to/from Russia
+flights_df$ADEP_PREFIX <- ifelse(substring(flights_df$ADEP_PREFIX,1,1) == 'U' | substring(flights_df$ADEP_PREFIX,1,2) == 'UA' | substring(flights_df$ADEP_PREFIX,1,2) == 'UB' |substring(flights_df$ADEP_PREFIX,1,2) == 'UC' | substring(flights_df$ADEP_PREFIX,1,2) == 'UD'| substring(flights_df$ADEP_PREFIX,1,2) == 'UG' | substring(flights_df$ADEP_PREFIX,1,2) == 'UK' |substring(flights_df$ADEP_PREFIX,1,2) == 'UM' | substring(flights_df$ADEP_PREFIX,1,2) == 'UT' , 'U', substring(flights_df$ADEP_PREFIX,1,2))
+
+flights_df$ADES_PREFIX <- ifelse(substring(flights_df$ADES_PREFIX,1,1) == 'U' | substring(flights_df$ADES_PREFIX,1,2) == 'UA' | substring(flights_df$ADES_PREFIX,1,2) == 'UB' |substring(flights_df$ADES_PREFIX,1,2) == 'UC' | substring(flights_df$ADES_PREFIX,1,2) == 'UD'| substring(flights_df$ADES_PREFIX,1,2) == 'UG' | substring(flights_df$ADES_PREFIX,1,2) == 'UK' |substring(flights_df$ADES_PREFIX,1,2) == 'UM' | substring(flights_df$ADES_PREFIX,1,2) == 'UT' , 'U', substring(flights_df$ADES_PREFIX,1,2))
+
+#fixing flights to/from outermost
+flights_df$ADEP_PREFIX<- ifelse( substring(flights_df$ADEP,1,4) == 'FMEE' | substring(flights_df$ADEP,1,4) =='FMEP' | substring(flights_df$ADEP,1,4) =='FMCZ'| substring(flights_df$ADEP,1,4) =='LPCR'|substring(flights_df$ADEP,1,4) == 'LPFL'|substring(flights_df$ADEP,1,4) == 'LPGR'|substring(flights_df$ADEP,1,4) == 'LPHR'|substring(flights_df$ADEP,1,4) == 'LPPD'| substring(flights_df$ADEP,1,4) =='LPLA'|substring(flights_df$ADEP,1,4) == 'LPPI'|substring(flights_df$ADEP,1,4) == 'LPAZ'| substring(flights_df$ADEP,1,4) =='LPSJ'|substring(flights_df$ADEP,1,4) == 'LPMA'|substring(flights_df$ADEP,1,4) == 'LPPS', substring(flights_df$ADEP,1,4), substring(flights_df$ADEP_PREFIX,1,2))
+
+flights_df$ADES_PREFIX<- ifelse( substring(flights_df$ADES,1,4) == 'FMEE' |substring(flights_df$ADES,1,4) == 'FMEP' |substring(flights_df$ADES,1,4) == 'FMCZ'|substring(flights_df$ADES,1,4) == 'LPCR'|substring(flights_df$ADES,1,4) == 'LPFL'|substring(flights_df$ADES,1,4) == 'LPGR'| substring(flights_df$ADES,1,4) =='LPHR'|substring(flights_df$ADES,1,4) == 'LPPD'|substring(flights_df$ADES,1,4) == 'LPLA'| substring(flights_df$ADES,1,4) =='LPPI'|substring(flights_df$ADES,1,4) == 'LPAZ'|substring(flights_df$ADES,1,4) == 'LPSJ'| substring(flights_df$ADES,1,4) =='LPMA'|substring(flights_df$ADES,1,4) == 'LPPS', substring(flights_df$ADEP,1,4), substring(flights_df$ADES_PREFIX,1,2))
+
+
+colnames(icaoPrefixCategories) <- c("ADEP_PREFIX" ,"ADEP_COUNTRY","ADEP_EU_EEA_EFTA","ADEP_ECAC", "ADEP_OUTERMOST_REGIONS", "ADEP_EU_EEA_EFTA_UK",  "ADEP_OUTER_CLOSE")
+
+str(icaoPrefixCategories)
+
+flights_df <- full_join(flights_df, icaoPrefixCategories)
+
+colnames(icaoPrefixCategories) <- c("ADES_PREFIX" ,"ADES_COUNTRY","ADES_EU_EEA_EFTA","ADES_ECAC", "ADES_OUTERMOST_REGIONS", "ADES_EU_EEA_EFTA_UK",  "ADES_OUTER_CLOSE")
+
+flights_df <- full_join(flights_df, icaoPrefixCategories)
+
+seq <- c('ADEP_PREFIX', 'ADES_PREFIX', 'ADEP_COUNTRY', 'ADEP_EU_EEA_EFTA', 'ADEP_ECAC', 'ADEP_OUTERMOST_REGIONS', 'ADEP_EU_EEA_EFTA_UK','ADEP_OUTER_CLOSE', 'ADES_COUNTRY', 'ADES_EU_EEA_EFTA', 'ADES_ECAC', 'ADES_OUTERMOST_REGIONS', 'ADES_EU_EEA_EFTA_UK', 'ADES_OUTER_CLOSE')
+for(colName in seq){
+  flights_df[[colName]] <- as.factor(flights_df[[colName]])
+  }
+return(flights_df)
+
+}
+```
+
+```{r}
+flights_df <- createCategories(flights_df)
+```
+
+```{r}
+head(flights_df)
+```
+
+
+
+### Calculations from fuel tools
+
+```{r}
+# Current Exchange rate from Euros to USD
+EurosToUsdExchangeRate = 1.182
+```
+
+
+```{r}
+CalculateSAFCost <- function(flights_df, costOfSafFuelPerKg = 3.66, safBlendingMandate = 0.02){
+  flights_df$SAF_COST <- flights_df$FUEL * safBlendingMandate * costOfSafFuelPerKg
+return(flights_df)
+}
+```
+
+```{r}
+flights_df<-CalculateSAFCost(flights_df)
+```
+
+```{r}
+head(flights_df)
+```
+
+
+
+```{r}
+CalculateFuelCost <- function(flights_df, costOfJetFuelPerKg = 0.61, safBlendingMandate = 0.02 ){
+    flights_df$FUEL_COST = flights_df$FUEL * (1-safBlendingMandate) * costOfJetFuelPerKg
+    return(flights_df)
+}
+```
+
+```{r}
+flights_df<-CalculateFuelCost(flights_df)
+```
+
+
+```{r}
+CalculateTotalFuelCost <- function(flights_df){
+    flights_df$TOTAL_FUEL_COST = flights_df$SAF_COST + flights_df$FUEL_COST
+    return(flights_df)
+    
+}
+```
+
+```{r}
+flights_df<-CalculateTotalFuelCost(flights_df)
+```
+
+
+```{r}
+CalculateTaxCost <- function(flights_df, FuelTaxRateEurosPerGJ = 2.15 , blendingMandate=0.02 ){
+    # *************************************************** #
+    # Constants for Fuel TAX Calculations
+    # all prices are in Euros/GJ
+    # 2023 = 0 Tax rate
+    # 2024 = 1.075    2025 = 2.15 etc
+
+    # Tax rate in 2033
+    MaxFuelTaxRateEurosPerGJ <- 10.75
+    # Using rate for 2025 to match the SAF mandate
+
+
+
+
+
+    # Tax rate in Euros/kg
+    FuelTaxRateEurosPerKg <- (46.4 / 1000) * FuelTaxRateEurosPerGJ
+    FuelTaxRateUsdPerKg <- FuelTaxRateEurosPerKg * EurosToUsdExchangeRate
+    # *************************************************** #
+
+    flights_df$TAX_COST = flights_df$FUEL * (1-blendingMandate) * FuelTaxRateUsdPerKg
+
+    return(flights_df)
+}
+```
+
+```{r}
+flights_df<-CalculateTaxCost(flights_df)
+```
+
+
+```{r}
+CalculateETSCost <- function(flights_df, safBlendingMandate=0.02, ETSCostpertonne = 62, ETSpercentage = 50){
+
+    ETSPricePerKg <- ETSCostpertonne/1000 * EurosToUsdExchangeRate
+
+    flights_df$ETS_COST <- flights_df$FUEL * 3.15 * (1-safBlendingMandate) * ETSPricePerKg * ETSpercentage/100
+
+    return(flights_df)
+}
+```
+
+```{r}
+flights_df<-CalculateETSCost(flights_df)
+```
+
+
+```{r}
+head(flights_df)
+```
+
+
+```{r}
+getDFRatio <- function(dfMonthsSet){
+    summerIATA <- set(4, 5, 6, 7, 8, 9, 10)
+    winterIATA <- set(1, 2, 3, 11, 12)
+
+    reSum <- summerIATA - dfMonthsSet
+    reWin <- winterIATA - dfMonthsSet
+
+    sumMultiplier <- len(summerIATA) - len(reSum)
+    winMultiplier <- len(winterIATA) - len(reWin)
+
+}
+```
+
+```{r}
+getIATASeasons <- function(setyear){
+    startSummer <- datetime(setyear, 3, 1) + relativedelta.relativedelta(day=31, weekday=relativedelta.SU(-1))
+
+    endSummer <- datetime(setyear, 10, 1) + relativedelta.relativedelta(day=31, hours=24,
+                                                                    weekday=relativedelta.SA(-1)) + dt.timedelta(days=1)
+
+}
+```
+
+
+```{r}
+head(flights_df)
+```
+
+
+```{r}
+flights_df<-write.csv(flights_df,"/Users/bhanukiran/Desktop/Fiverr gig Tashayu/flightsv2.csv", row.names = FALSE)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
